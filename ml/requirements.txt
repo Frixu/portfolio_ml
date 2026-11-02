@@ -3,3 +3,4 @@ sqlalchemy>=2.0
 psycopg[binary]>=3.2
 python-dotenv>=1.0
 jupyter>=1.0
+yfinance>=0.2.50
