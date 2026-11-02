@@ -1,0 +1,25 @@
+# Sekrety
+.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Dane i modele (za duże do repozytorium)
+data/
+*.parquet
+*.csv
+models/
+*.pkl
+*.joblib
+
+# Node / frontend
+node_modules/
+dist/
+
+# System i edytory
+.DS_Store
+.vscode/
+.idea/
