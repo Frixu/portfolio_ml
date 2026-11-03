@@ -1,7 +1,7 @@
 """Punkt startowy API."""
 from fastapi import FastAPI
 
-from app.routers import auth, instruments
+from app.routers import auth, instruments, portfolios
 
 app = FastAPI(
     title="Portfolio ML API",
@@ -11,6 +11,7 @@ app = FastAPI(
 
 app.include_router(instruments.router)
 app.include_router(auth.router)
+app.include_router(portfolios.router)
 
 @app.get("/health", tags=["System"], summary="Sprawdzenie, czy API działa")
 def health():
