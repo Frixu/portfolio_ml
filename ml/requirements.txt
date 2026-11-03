@@ -4,3 +4,4 @@ psycopg[binary]>=3.2
 python-dotenv>=1.0
 jupyter>=1.0
 yfinance>=0.2.50
+pyarrow>=17.0
