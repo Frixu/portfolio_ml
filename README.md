@@ -53,3 +53,4 @@ Uruchomienie wszystkich testów:
 pip install -r backend/requirements-dev.txt
 pytest backend -v
 ```
+
