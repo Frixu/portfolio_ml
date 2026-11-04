@@ -1,0 +1,49 @@
+:root {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #1f2937;
+  background: #f5f6f8;
+  --accent: #2563eb;
+  --border: #e2e5ea;
+  --muted: #6b7280;
+  --danger: #b91c1c;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+h1 { font-size: 1.5rem; margin: 1.5rem 0 1rem; }
+a { color: var(--accent); }
+
+.container { max-width: 960px; margin: 0 auto; padding: 0 16px; }
+.muted { color: var(--muted); font-size: 0.9rem; }
+.error { color: var(--danger); font-size: 0.9rem; }
+
+.card { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+
+.header { background: #fff; border-bottom: 1px solid var(--border); }
+.header-inner { display: flex; justify-content: space-between; align-items: center; height: 56px; }
+.logo { font-weight: 700; text-decoration: none; color: inherit; }
+.header-user { display: flex; gap: 12px; align-items: center; font-size: 0.9rem; }
+.badge { background: #eef2ff; color: var(--accent); border-radius: 999px; padding: 2px 10px; font-size: 0.8rem; }
+
+button {
+  background: var(--accent); color: #fff; border: none; border-radius: 6px;
+  padding: 8px 16px; font-size: 0.95rem; cursor: pointer;
+}
+button:disabled { opacity: 0.6; cursor: default; }
+.link-button { background: none; color: var(--accent); padding: 0; }
+
+input, select {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--border);
+  border-radius: 6px; font-size: 0.95rem; font-family: inherit;
+}
+label { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
+
+.auth-page { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+.auth-form { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 12px; }
+.auth-form h1 { margin: 0 0 4px; }
+
+.portfolio-list { list-style: none; padding: 0; display: grid; gap: 8px; margin: 0 0 16px; }
+.portfolio-card { display: flex; justify-content: space-between; text-decoration: none; color: inherit; }
+.portfolio-card:hover { border-color: var(--accent); }
+.inline-form { display: flex; gap: 8px; }
+.inline-form input { flex: 1; }
