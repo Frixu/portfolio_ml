@@ -26,6 +26,7 @@ class Instrument(Base):
     ticker: Mapped[str] = mapped_column(String(10), primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
     index_name: Mapped[str] = mapped_column(String(20))
+    sector: Mapped[str | None] = mapped_column(String(50))
 
 
 class Portfolio(Base):
