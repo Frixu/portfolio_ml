@@ -38,3 +38,18 @@ Praca inżynierska: **Projekt i implementacja aplikacji webowej do zarządzania 
 ```bash
    python ml/src/check_db.py
 ```
+
+## Testy
+
+Wymagana baza testowa (jednorazowo):
+
+```bash
+docker compose exec db createdb -U portfolio portfolio_test
+```
+
+Uruchomienie wszystkich testów:
+
+```bash
+pip install -r backend/requirements-dev.txt
+pytest backend -v
+```
