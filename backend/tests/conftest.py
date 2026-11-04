@@ -56,6 +56,7 @@ def clean_user_data():
     yield
     with test_engine.begin() as conn:
         conn.exec_driver_sql("TRUNCATE users, portfolios, transactions RESTART IDENTITY CASCADE")
+        conn.exec_driver_sql("TRUNCATE users, portfolios, transactions, model_scores RESTART IDENTITY CASCADE")
 
 
 @pytest.fixture
@@ -77,3 +78,7 @@ def login(client):
         response = client.post("/auth/login", data={"username": email, "password": password})
         return {"Authorization": f"Bearer {response.json()['access_token']}"}
     return _login
+
+@pytest.fixture
+def db_engine():
+    return test_engine

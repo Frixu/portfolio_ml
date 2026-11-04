@@ -16,5 +16,6 @@ class Settings(BaseSettings):
     postgres_port: int = 5432
     jwt_secret: str
     jwt_expire_minutes: int = 60
+    model_version: str = "logreg-rank-v2"
 
 settings = Settings()

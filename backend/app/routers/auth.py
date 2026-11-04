@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.deps import get_current_user
 from app.models import User
-from app.schemas import Token, UserCreate, UserOut
+from app.schemas import Token, UserCreate, UserOut, UserUpdate
 from app.security import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/auth", tags=["Uwierzytelnianie"])
@@ -42,4 +42,11 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
 
 @router.get("/me", response_model=UserOut, summary="Dane zalogowanego użytkownika")
 def me(user: User = Depends(get_current_user)):
+    return user
+
+@router.patch("/me", response_model=UserOut, summary="Zmiana profilu ryzyka")
+def update_me(data: UserUpdate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user.risk_profile = data.risk_profile
+    db.commit()
+    db.refresh(user)
     return user

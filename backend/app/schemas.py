@@ -104,3 +104,25 @@ class PortfolioDetail(PortfolioOut):
     total_cost: float
     unrealized_pnl: float
     realized_pnl: float
+
+class UserUpdate(BaseModel):
+    risk_profile: RiskProfile
+
+
+class RecommendationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    ticker: str
+    name: str
+    sector: str | None
+    action: Literal["ADD", "REDUCE", "CONSIDER_SELL"]
+    score: float | None
+    reasons: list[str]
+
+
+class RecommendationsOut(BaseModel):
+    model_version: str
+    scores_date: date | None
+    risk_profile: RiskProfile
+    recommendations: list[RecommendationOut]
+    disclaimer: str

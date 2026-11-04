@@ -1,16 +1,18 @@
-"""Portfele użytkownika i transakcje."""
+"""Portfele użytkownika, transakcje i rekomendacje."""
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import get_db
 from app.deps import get_current_user
 from app.models import Instrument, Portfolio, Transaction, User
 from app.schemas import (HoldingOut, PortfolioCreate, PortfolioDetail, PortfolioOut,
-                         TransactionCreate, TransactionOut)
+                         RecommendationOut, RecommendationsOut, TransactionCreate, TransactionOut)
 from app.services.portfolio import InsufficientSharesError, compute_positions
+from app.services.recommendations import Candidate, recommend
 
 router = APIRouter(prefix="/portfolios", tags=["Portfele"])
 
@@ -23,6 +25,17 @@ MARKET_SQL = text("""
     WHERE i.ticker = ANY(:tickers)
 """)
 
+SCORES_SQL = text("""
+    SELECT s.ticker, i.name, i.index_name, i.sector, s.score, s.explanation, s.date,
+           PERCENT_RANK() OVER (ORDER BY s.score) AS score_percentile
+    FROM model_scores s
+    JOIN instruments i ON i.ticker = s.ticker
+    WHERE s.model_version = :version
+      AND s.date = (SELECT MAX(date) FROM model_scores WHERE model_version = :version)
+""")
+
+DISCLAIMER = ("Propozycje mają charakter edukacyjny i wspomagający. Nie stanowią rekomendacji "
+              "inwestycyjnej ani doradztwa inwestycyjnego w rozumieniu przepisów prawa.")
 
 def get_own_portfolio(portfolio_id: int, user: User, db: Session) -> Portfolio:
     """Zwraca portfel, jeśli należy do użytkownika. Cudzy portfel wygląda jak nieistniejący."""
@@ -38,6 +51,17 @@ def get_transactions(db: Session, portfolio_id: int) -> list[Transaction]:
         .order_by(Transaction.trade_date, Transaction.id)
     ))
 
+def current_weights(db: Session, portfolio_id: int) -> dict[str, float]:
+    """Udział każdej posiadanej spółki w bieżącej wartości portfela."""
+    positions = {t: p for t, p in compute_positions(get_transactions(db, portfolio_id)).items()
+                 if p.quantity > 0}
+    if not positions:
+        return {}
+    rows = db.execute(MARKET_SQL, {"tickers": list(positions)}).mappings()
+    values = {r["ticker"]: float(positions[r["ticker"]].quantity * r["last_close"])
+              for r in rows if r["last_close"] is not None}
+    total = sum(values.values())
+    return {t: v / total for t, v in values.items()} if total else {}
 
 @router.post("", response_model=PortfolioOut, status_code=status.HTTP_201_CREATED,
              summary="Utworzenie portfela")
@@ -138,3 +162,28 @@ def add_transaction(portfolio_id: int, data: TransactionCreate,
     db.commit()
     db.refresh(transaction)
     return transaction
+
+@router.get("/{portfolio_id}/recommendations", response_model=RecommendationsOut,
+            summary="Propozycje zmian w portfelu: ocena modelu ML + reguły profilu ryzyka")
+def get_recommendations(portfolio_id: int, user: User = Depends(get_current_user),
+                        db: Session = Depends(get_db)):
+    portfolio = get_own_portfolio(portfolio_id, user, db)
+
+    rows = db.execute(SCORES_SQL, {"version": settings.model_version}).mappings().all()
+    candidates = {
+        r["ticker"]: Candidate(
+            ticker=r["ticker"], name=r["name"], index_name=r["index_name"], sector=r["sector"],
+            score=float(r["score"]), score_percentile=float(r["score_percentile"]),
+            explanation=r["explanation"],
+        )
+        for r in rows
+    }
+    recs = recommend(current_weights(db, portfolio.id), candidates, user.risk_profile) if candidates else []
+
+    return RecommendationsOut(
+        model_version=settings.model_version,
+        scores_date=rows[0]["date"] if rows else None,
+        risk_profile=user.risk_profile,
+        recommendations=[RecommendationOut.model_validate(r) for r in recs],
+        disclaimer=DISCLAIMER,
+    )

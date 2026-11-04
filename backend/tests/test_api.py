@@ -3,6 +3,12 @@ from datetime import date, timedelta
 
 import pytest
 
+import json
+
+from sqlalchemy import text
+
+from app.config import settings
+
 
 def buy(quantity, price, fee=5, day="2026-01-15", ticker="PKO"):
     return {"ticker": ticker, "side": "BUY", "quantity": quantity, "price": price,
@@ -122,3 +128,69 @@ def test_user_cannot_access_other_users_portfolio(client, login):
     assert client.get(f"/portfolios/{portfolio_id}", headers=intruder).status_code == 404
     response = client.post(f"/portfolios/{portfolio_id}/transactions", json=buy(1, 100), headers=intruder)
     assert response.status_code == 404
+
+# --- Rekomendacje ---
+
+FEATURES = ["mom_1m", "mom_3m", "mom_6m", "mom_12m", "vol_3m", "dist_high_12m", "liquidity_3m"]
+
+
+def insert_scores(engine, scores):
+    """Wstawia oceny modelu do bazy testowej (zamiast uruchamiania score.py)."""
+    explanation = json.dumps({
+        "features": {f: 0.1 for f in FEATURES} | {"liquidity_3m": 15.0},
+        "percentiles": {f: 0.5 for f in FEATURES},
+        "contributions": {f: 0.0 for f in FEATURES} | {"mom_12m": 0.1},
+    })
+    with engine.begin() as conn:
+        for ticker, score in scores.items():
+            conn.execute(
+                text("INSERT INTO model_scores (date, ticker, model_version, score, explanation) "
+                     "VALUES ('2026-10-31', :t, :v, :s, CAST(:e AS jsonb))"),
+                {"t": ticker, "v": settings.model_version, "s": score, "e": explanation},
+            )
+
+
+def test_recommendations_without_model_scores_are_empty(client, login):
+    headers = login()
+    portfolio_id = client.post("/portfolios", json={"name": "P"}, headers=headers).json()["id"]
+    response = client.get(f"/portfolios/{portfolio_id}/recommendations", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["recommendations"] == []
+    assert response.json()["scores_date"] is None
+
+
+def test_recommendations_for_empty_portfolio_propose_best_stock(client, login, db_engine):
+    insert_scores(db_engine, {"PKO": 0.60, "PZU": 0.40})
+    headers = login()
+    portfolio_id = client.post("/portfolios", json={"name": "P"}, headers=headers).json()["id"]
+
+    body = client.get(f"/portfolios/{portfolio_id}/recommendations", headers=headers).json()
+    assert body["scores_date"] == "2026-10-31"
+    assert body["recommendations"][0]["ticker"] == "PKO"
+    assert body["recommendations"][0]["action"] == "ADD"
+    assert body["disclaimer"]
+
+
+def test_recommendations_flag_oversized_position(client, login, db_engine):
+    insert_scores(db_engine, {"PKO": 0.60, "PZU": 0.40})
+    headers = login()
+    portfolio_id = client.post("/portfolios", json={"name": "P"}, headers=headers).json()["id"]
+    client.post(f"/portfolios/{portfolio_id}/transactions", json=buy(10, 100), headers=headers)
+
+    recs = client.get(f"/portfolios/{portfolio_id}/recommendations", headers=headers).json()["recommendations"]
+    pko = next(r for r in recs if r["ticker"] == "PKO")
+    assert pko["action"] == "REDUCE"  # 100% portfela w jednej spółce
+
+
+def test_user_can_change_risk_profile(client, login):
+    headers = login()
+    response = client.patch("/auth/me", json={"risk_profile": "conservative"}, headers=headers)
+    assert response.status_code == 200
+    assert client.get("/auth/me", headers=headers).json()["risk_profile"] == "conservative"
+
+
+def test_other_user_cannot_get_recommendations(client, login):
+    owner = login("wlasciciel@example.com")
+    portfolio_id = client.post("/portfolios", json={"name": "P"}, headers=owner).json()["id"]
+    intruder = login("intruz@example.com")
+    assert client.get(f"/portfolios/{portfolio_id}/recommendations", headers=intruder).status_code == 404
