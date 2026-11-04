@@ -88,6 +88,7 @@ class TransactionOut(BaseModel):
 class HoldingOut(BaseModel):
     ticker: str
     name: str
+    sector: str | None
     quantity: float
     avg_cost: float
     cost_basis: float

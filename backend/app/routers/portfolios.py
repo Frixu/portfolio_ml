@@ -17,7 +17,7 @@ from app.services.recommendations import Candidate, recommend
 router = APIRouter(prefix="/portfolios", tags=["Portfele"])
 
 MARKET_SQL = text("""
-    SELECT i.ticker, i.name, last.close AS last_close
+    SELECT i.ticker, i.name, i.sector, last.close AS last_close
     FROM instruments i
     LEFT JOIN LATERAL (
         SELECT close FROM prices p WHERE p.ticker = i.ticker ORDER BY date DESC LIMIT 1
@@ -106,6 +106,7 @@ def get_portfolio(portfolio_id: int, user: User = Depends(get_current_user),
             "ticker": ticker,
             "name": market[ticker]["name"],
             "quantity": pos.quantity,
+            "sector": market[ticker]["sector"],
             "avg_cost": pos.avg_cost,
             "cost_basis": pos.cost,
             "last_close": last,

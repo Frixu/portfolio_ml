@@ -5,6 +5,7 @@ import Layout from "./components/Layout";
 import LoginPage from "./pages/LoginPage";
 import PortfoliosPage from "./pages/PortfoliosPage";
 import RegisterPage from "./pages/RegisterPage";
+import PortfolioPage from "./pages/PortfolioPage";
 
 /** Wpuszcza tylko zalogowanych; pozostałych przekierowuje do logowania. */
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -20,7 +21,7 @@ export default function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route element={<RequireAuth><Layout /></RequireAuth>}>
         <Route path="/" element={<PortfoliosPage />} />
-        <Route path="/portfolios/:id" element={<p>Widok portfela – w następnym kroku.</p>} />
+        <Route path="/portfolios/:id" element={<PortfolioPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
