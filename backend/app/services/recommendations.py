@@ -61,17 +61,34 @@ class Recommendation:
     reasons: list[str] = field(default_factory=list)
 
 
+def format_change(value: float) -> str:
+    """Zmiana procentowa w polskim zapisie: +443%, +42,3%, -7,6%."""
+    text = f"{value:+.0%}" if abs(value) >= 1 else f"{value:+.1%}"
+    return text.replace(".", ",")
+
+
+def describe_position(percentile: float) -> str:
+    """Pozycja spółki względem pozostałych spółek w danej cesze."""
+    if percentile >= 0.995:
+        return "najwyżej spośród ocenianych spółek"
+    if percentile <= 0.005:
+        return "najniżej spośród ocenianych spółek"
+    if percentile >= 0.5:
+        return f"wyżej niż u {percentile:.0%} pozostałych spółek"
+    return f"niżej niż u {1 - percentile:.0%} pozostałych spółek"
+
+
 def describe_factor(feature: str, explanation: dict) -> str:
-    """Np. 'zmiana kursu w 12 miesięcy: +85.0% (wyżej niż u 95% spółek)'."""
+    """Np. 'Zmiana kursu w 12 miesięcy: +91,8% (wyżej niż u 95% pozostałych spółek)'."""
     value = explanation["features"][feature]
-    percentile = explanation["percentiles"][feature]
     if feature == "liquidity_3m":
-        value_txt = f"{math.exp(value) / 1e6:.1f} mln zł dziennie"
+        value_txt = f"{math.exp(value) / 1e6:.1f} mln zł dziennie".replace(".", ",")
     elif feature == "vol_3m":
-        value_txt = f"{value:.0%} rocznie"
+        value_txt = f"{value:.0%} w skali roku"
     else:
-        value_txt = f"{value:+.1%}"
-    return f"{FEATURE_LABELS[feature]}: {value_txt} (wyżej niż u {percentile:.0%} spółek)"
+        value_txt = format_change(value)
+    position = describe_position(explanation["percentiles"][feature])
+    return f"{FEATURE_LABELS[feature].capitalize()}: {value_txt} ({position})"
 
 
 def top_factors(explanation: dict, positive: bool = True, n: int = 2) -> list[str]:
@@ -119,13 +136,14 @@ def recommend(weights: dict[str, float], candidates: dict[str, Candidate],
             flag(ticker, "REDUCE", f"Udział w portfelu {w:.0%} przekracza limit "
                                    f"{limits.max_position_weight:.0%} dla Twojego profilu")
 
-    # 2. Zbyt duży udział sektora - wskazujemy spółkę z najsłabszą oceną modelu w tym sektorze
+    # 2. Zbyt duży udział sektora - wskazujemy spółkę z najsłabszą oceną modelu w tym sektorze.
+    #    Gdy w sektorze jest jedna spółka, wystarcza reguła 1 (limit spółki <= limit sektora).
     for sector, w in sector_weights.items():
-        if w > limits.max_sector_weight:
-            held = [t for t in weights if sector_of(t) == sector]
+        held = [t for t in weights if sector_of(t) == sector]
+        if w > limits.max_sector_weight and len(held) > 1:
             weakest = min(held, key=lambda t: candidates[t].score if t in candidates else -1.0)
             flag(weakest, "REDUCE", f"Sektor {sector} stanowi {w:.0%} portfela (limit "
-                                    f"{limits.max_sector_weight:.0%}); ta spółka ma w nim "
+                                    f"{limits.max_sector_weight:.0%}), a ta spółka ma w nim "
                                     f"najsłabszą ocenę modelu")
 
     # 3. Posiadane spółki niepasujące do profilu lub słabo oceniane przez model
@@ -139,11 +157,11 @@ def recommend(weights: dict[str, float], candidates: dict[str, Candidate],
         if vol_percentile(c) > limits.max_volatility_percentile:
             flag(ticker, "CONSIDER_SELL", f"Spółka należy do "
                                           f"{1 - limits.max_volatility_percentile:.0%} "
-                                          f"najbardziej zmiennych - zbyt ryzykowna dla Twojego profilu")
+                                          f"najbardziej zmiennych – zbyt ryzykowna dla Twojego profilu")
         if c.score_percentile <= BOTTOM_PERCENTILE:
-            factors = top_factors(c.explanation, positive=False)
-            flag(ticker, "CONSIDER_SELL", "Ocena modelu w dolnych 20% spółek"
-                                          + (": " + "; ".join(factors) if factors else ""))
+            flag(ticker, "CONSIDER_SELL", "Ocena modelu w dolnych 20% spółek")
+            for factor in top_factors(c.explanation, positive=False):
+                flag(ticker, "CONSIDER_SELL", factor)
 
     # 4. Propozycje nowych spółek: najlepiej oceniane spośród dostępnych dla profilu
     allowed = sorted(
@@ -166,10 +184,10 @@ def recommend(weights: dict[str, float], candidates: dict[str, Candidate],
                 or added[sector] >= MAX_NEW_PER_SECTOR):
             continue
         added[sector] += 1
-        reasons = ["Ocena modelu w górnych 20% spółek dostępnych dla Twojego profilu: "
-                   + "; ".join(top_factors(c.explanation))]
+        reasons = ["Ocena modelu w górnych 20% spółek dostępnych dla Twojego profilu",
+                   *top_factors(c.explanation)]
         if weights and sector_weights.get(sector, 0) == 0:
-            reasons.append(f"Nowy sektor w portfelu ({sector}) - poprawia dywersyfikację")
+            reasons.append(f"Nowy sektor w portfelu ({sector}) – poprawia dywersyfikację")
         recs[c.ticker] = Recommendation(c.ticker, c.name, c.sector, "ADD", c.score, reasons)
 
     return sorted(recs.values(), key=lambda r: (ACTION_ORDER[r.action], -(r.score or 0)))

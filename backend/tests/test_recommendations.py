@@ -74,8 +74,27 @@ def test_held_stock_is_not_proposed_again():
     assert "S0" not in adds
 
 
-def test_reasons_describe_model_factors():
+def test_reasons_list_rule_and_model_factors_separately():
     candidates = {"PKO": cand("PKO", 0.9)}
     rec = recommend({}, candidates, "dynamic")[0]
     assert rec.action == "ADD"
-    assert "zmiana kursu w 12 miesięcy" in rec.reasons[0]
+    assert rec.reasons[0].startswith("Ocena modelu w górnych 20%")
+    assert any(r.startswith("Zmiana kursu w 12 miesięcy") for r in rec.reasons)
+
+
+def test_single_stock_sector_gets_only_position_limit_reason():
+    candidates = {"PKO": cand("PKO", 0.5)}
+    rec = recommend({"PKO": 1.0}, candidates, "balanced")[0]
+    assert rec.reasons == ["Udział w portfelu 100% przekracza limit 20% dla Twojego profilu"]
+
+
+def test_factor_description_uses_polish_format_and_readable_position():
+    from app.services.recommendations import describe_factor
+    explanation = {
+        "features": {"mom_12m": 4.43, "liquidity_3m": 13.8155},  # exp(13.8155) ≈ 1 mln zł
+        "percentiles": {"mom_12m": 1.0, "liquidity_3m": 0.08},
+    }
+    assert describe_factor("mom_12m", explanation) == \
+        "Zmiana kursu w 12 miesięcy: +443% (najwyżej spośród ocenianych spółek)"
+    assert describe_factor("liquidity_3m", explanation) == \
+        "Średni obrót: 1,0 mln zł dziennie (niżej niż u 92% pozostałych spółek)"
