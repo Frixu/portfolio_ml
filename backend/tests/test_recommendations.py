@@ -98,3 +98,15 @@ def test_factor_description_uses_polish_format_and_readable_position():
         "Zmiana kursu w 12 miesięcy: +443% (najwyżej spośród ocenianych spółek)"
     assert describe_factor("liquidity_3m", explanation) == \
         "Średni obrót: 1,0 mln zł dziennie (niżej niż u 92% pozostałych spółek)"
+    
+def test_no_new_proposals_in_sector_close_to_its_limit():
+    candidates = {
+        "PKO": cand("PKO", 0.50),
+        "PEO": cand("PEO", 0.90),                     # najlepiej oceniona, ale to bank
+        "LPP": cand("LPP", 0.85, sector="Handel"),
+        "KGH": cand("KGH", 0.40, sector="Surowce"),
+        **{f"W{i}": cand(f"W{i}", 0.30 + i / 100, sector=f"Sektor{i}") for i in range(6)},
+    }
+    adds = by_action(recommend({"PKO": 0.28, "KGH": 0.10}, candidates, "conservative"), "ADD")
+    assert "PEO" not in adds  # banki 28% + nowa pozycja 5% przekroczyłyby limit 30%
+    assert "LPP" in adds

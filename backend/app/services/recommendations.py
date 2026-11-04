@@ -26,6 +26,7 @@ PROFILES = {
 TOP_SHARE = 0.2          # propozycje zakupu: górne 20% spółek dostępnych dla profilu
 BOTTOM_PERCENTILE = 0.2  # sygnał sprzedaży: dolne 20% rankingu modelu
 MAX_NEW_PER_SECTOR = 2   # dywersyfikacja propozycji
+MIN_NEW_POSITION = 0.05  # minimalny sensowny udział nowej pozycji w portfelu
 ACTION_ORDER = {"REDUCE": 0, "CONSIDER_SELL": 1, "ADD": 2}
 
 FEATURE_LABELS = {
@@ -108,6 +109,7 @@ def recommend(weights: dict[str, float], candidates: dict[str, Candidate],
     """
     limits = PROFILES[profile]
     recs: dict[str, Recommendation] = {}
+    
 
     def sector_of(ticker: str) -> str:
         c = candidates.get(ticker)
@@ -179,8 +181,10 @@ def recommend(weights: dict[str, float], candidates: dict[str, Candidate],
         if sum(added.values()) >= max_new:
             break
         sector = c.sector or "Inne"
+                # Udział sektora po dokupieniu tej spółki (i wcześniejszych propozycji z tego sektora)
+        projected = sector_weights.get(sector, 0) + (added[sector] + 1) * MIN_NEW_POSITION
         if (c.ticker in weights
-                or sector_weights.get(sector, 0) >= limits.max_sector_weight
+                or projected > limits.max_sector_weight
                 or added[sector] >= MAX_NEW_PER_SECTOR):
             continue
         added[sector] += 1
