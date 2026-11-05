@@ -7,3 +7,4 @@ yfinance>=0.2.50
 pyarrow>=17.0
 scikit-learn>=1.6
 lightgbm>=4.5
+matplotlib>=3.9
