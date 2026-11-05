@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
-import { useAuth } from "../auth";
+import { useAuth } from "../useAuth";
 import { RISK_PROFILE_LABELS, type RiskProfile } from "../types";
 
 const PROFILE_DESCRIPTIONS: Record<RiskProfile, string> = {

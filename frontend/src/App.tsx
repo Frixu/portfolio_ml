@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { useAuth } from "./auth";
+import { useAuth } from "./useAuth";
 import Layout from "./components/Layout";
 import LoginPage from "./pages/LoginPage";
 import PortfoliosPage from "./pages/PortfoliosPage";

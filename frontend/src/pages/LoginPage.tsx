@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
-import { useAuth } from "../auth";
+import { useAuth } from "../useAuth";
 
 export default function LoginPage() {
   const { user, login } = useAuth();
